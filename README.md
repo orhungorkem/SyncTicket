@@ -5,7 +5,7 @@ The aim of the project is to simulate a queue for cinema tickets. There are 3 te
 ## Compilation and Execution
 
 Project requires: 
-* Linux environment 
+* Unix based environment 
 * gcc/g++ compiler (Version 9.3.0 or more recent)
 <!-- end of the list -->
 The following commands will be sufficient:
