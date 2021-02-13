@@ -21,7 +21,6 @@ pthread_mutex_t start;   //lock to keep client threads without progressing befor
 pthread_mutex_t mut;  //a general mutex for clients
 pthread_mutex_t wrt;  //mutex to avoid conflicts while tellers are writing to the file
 pthread_mutex_t emptyTellerMutex;   //mutex to avoid conflicts when empty teller list is updated 
-pthread_mutex_t l1;  
 pthread_mutex_t l2;  //lock to keep teller b from writing to file before teller a (at the beginning)
 pthread_mutex_t l3;  //lock to keep teller c from writing to file before teller b (at the beginning)
 pthread_mutex_t seatLock;  //mutex to avoid conflicts in seat reserving 
@@ -85,14 +84,11 @@ int main(int argc, char *argv[]){
     pthread_mutex_init(&wrt, NULL);
     pthread_mutex_init(&emptyTellerMutex, NULL);
     pthread_mutex_init(&seatLock, NULL);
-    pthread_mutex_init(&l1, NULL);
     pthread_mutex_init(&l2, NULL);
     pthread_mutex_init(&l3, NULL);
 
-
-    pthread_mutex_lock(&l1); //Teller B is going to wait A to unlock and then start
     pthread_mutex_lock(&l2); //Teller B is going to wait A to unlock and then start
-    pthread_mutex_lock(&l3); //Teller B is going to wait A to unlock and then start
+    pthread_mutex_lock(&l3); //Teller C is going to wait B to unlock and then start
 
     string config=argv[1];  //input file 
     string output=argv[2];  //output file 
@@ -205,6 +201,10 @@ void *teller(void* param){
     int *id = (int *)param;  //id=1->A id=2->B id=3->C 
     char teller=64+*id;
 
+    /**
+     * Tellers should print in A, B, C order. 
+     * Thus, B will wait for A to unlock mutex l2 and c will wait for B to unlock mutex l3.
+     */
     if(teller=='A'){
         pthread_mutex_lock(&wrt);
         outFile << "Teller "<<teller<<" has arrived.\n";
@@ -232,7 +232,7 @@ void *teller(void* param){
     int service;
     int seatWanted;
 
-    sem_post(&empty);
+    sem_post(&empty);   //Increases the value in the semaphore, so clients will start to come 
 
     /**
      * General loop for tellers
@@ -286,14 +286,14 @@ void *teller(void* param){
             }
         }
         else{
-            for(int i=0;i<seats.size();i++){
+            for(int i=0;i<seats.size();i++){   //if invalid seat is wanted, give the min seat possible
                 if(!seats[i]){
                     seatGiven=i+1;
                     break;
                 }
             }
         }
-        if(seatGiven!=0){
+        if(seatGiven!=0){   
             seats[seatGiven-1]=true;
         }
         pthread_mutex_unlock(&seatLock);
@@ -313,6 +313,7 @@ void *teller(void* param){
 
         /**
          * Output the procedure
+         * I brought the output part after teller makes itself available since file io can cause delay
          */
         pthread_mutex_lock(&wrt);
         if(seatGiven==0){
